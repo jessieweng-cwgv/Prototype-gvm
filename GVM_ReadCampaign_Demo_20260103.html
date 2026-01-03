@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活動 Prototype v2 - 閱讀文章領取折扣碼</title>
+    <style>
+        /* --- 基礎樣式 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            padding-bottom: 100px; /* 防止 Sticky Bar 擋住內容底部 */
+        }
+        header {
+            background: #fff;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #cc0000;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        /* 【修改點 1】標題下方的咖啡圖樣式 */
+        .promo-banner {
+            margin: 20px 0 30px 0;
+            text-align: center;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .promo-banner img {
+            width: 100%;
+            height: auto;
+            max-height: 250px; /* 限制最大高度 */
+            object-fit: cover; /* 保持圖片比例 */
+            display: block;
+        }
+        .promo-text {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #d32f2f;
+        }
+
+        .meta {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .content p {
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-align: justify;
+        }
+        
+        /* --- 【修改點 2】浮動進度條 (Sticky Bar) - 置中且初始隱藏 --- */
+        .sticky-bar {
+            position: fixed;
+            bottom: -100px; /* 初始隱藏在畫面外 */
+            left: 50%; /* 水平置中 */
+            transform: translateX(-50%); /* 水平置中校正 */
+            width: 90%;
+            max-width: 400px; /* 限制最大寬度 */
+            background: #fff;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border-radius: 50px; /* 變成圓角膠囊狀 */
+            padding: 10px 20px;
+            cursor: pointer;
+            z-index: 900;
+            transition: bottom 0.5s ease, transform 0.3s ease; /* 加入滑入動畫 */
+            border: 2px solid #cc0000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        /* 當滑到 50% 後，加上此 class 讓它滑入 */
+        .sticky-bar.visible {
+            bottom: 20px;
+        }
+
+        .sticky-bar:hover {
+            transform: translateX(-50%) translateY(-5px); /* Hover 時保持置中並上浮 */
+        }
+        .sticky-content {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sticky-text-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .sticky-title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #cc0000;
+        }
+        .sticky-text {
+            font-size: 13px;
+            color: #555;
+        }
+        .sticky-progress-info {
+            font-weight: bold;
+            color: #cc0000;
+            font-size: 18px;
+            margin-left: 10px;
+        }
+        /* Icon */
+        .sticky-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+
+
+        /* --- 完整提示區塊 (Modal) - 保持不變 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: #fff;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 12px;
+            padding: 25px;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .modal-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: #cc0000;
+        }
+        .modal h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .modal p {
+            color: #666;
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+        .modal-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .modal-btn.active {
+            background: #cc0000;
+            color: #fff;
+        }
+        .modal-btn.disabled {
+            background: #ddd;
+            color: #999;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .modal-footer {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #999;
+            text-align: left;
+        }
+
+        /* --- 測試控制台 (Demo Only) --- */
+        .debug-panel {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 2000;
+        }
+        .debug-panel button {
+            display: block;
+            margin: 5px 0;
+            width: 100%;
+            padding: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">遠見雜誌</div>
+    </header>
+
+    <div class="container">
+        <h1>10月新制懶人包！電價調漲、疫苗接種等政策變革，普發1萬最快月底入帳</h1>
+        
+        <div class="promo-banner">
+            <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=800&auto=format&fit=crop" alt="7-11 Coffee Promo">
+            <div class="promo-text">☕ 閱讀文章，請你喝 7-ELEVEN 咖啡！</div>
+        </div>
+
+        <div class="meta">2025-10-01 | 文 / 遠見編輯部</div>
+        
+        <div class="content" id="articleContent">
+            <p>10月的第一天，多項與民眾日常生活及荷包相關的多項新制正式上路，涵蓋全民現金普發、民生電價調整、疫苗接種、交通與醫療政策變革及稅務規定等，《遠見》完整整理，帶您一次了解密切留意相關變化等細節以保障權益。</p>
+            
+            <h3>全民普發1萬元</h3>
+            <p>行政院於9月11日通過《韌性特別條例》，規定全民普發現金1萬元，且須於預算公布後1個月內啟動發放作業，7個月內完成撥付。立法院預計於9月30日完成審議，最快可於10月下旬將現金入帳。</p>
+            
+            <h3>民生電價上調</h3>
+            <p>台電將從10月起調整民生用電費率，住宅700度以下每度增加0.1元，701至1000度每度漲0.2元，1001度以上每度漲0.4元；小商家700度以下每度漲0.1元，701度以上不調整，平均漲幅約0.71%。以四口之家月用700度計算，電費最多增加70元；產業用電則維持凍漲。</p>
+            
+            <p>（此處為模擬長文章滾動效果的填充文字...請繼續往下滾動以觸發機制）</p>
+            <p style="height: 300px; background:#eee; line-height: 300px; text-align:center; color:#999;">假文段落佔位符 A</p>
+            
+            <div id="scroll-marker" style="border-top: 1px dashed red; text-align: center; color: red; font-size: 12px;">--- 文章 50% 線 (滾過此處觸發) ---</div>
+            
+            <p style="height: 300px; background:#eee; line-height: 300px; text-align:center; color:#999;">假文段落佔位符 B</p>
+            <p>疾管署表示，因應流感進入流行期及新冠疫情可能捲土重來，公費流感疫苗與新冠疫苗10月1日起將同步開打。首波接種對象包括65歲以上長者、孕婦、6個月以上幼兒、機構住民及照護人員。</p>
+            <p>健保署宣布，自10月1日起，將新一代口服標靶藥物BTK抑制劑擴大納入健保給付，適用於濾泡性淋巴瘤（FL）、慢性淋巴性白血病（CLL）以及被套細胞淋巴瘤（MCL）三大適應症。</p>
+            <p>BTK抑制劑透過阻斷腫瘤細胞的信號路徑，抑制腫瘤生長，具有更高的專一性，並能降低化療帶來的全身性毒性。口服用藥的形式，不僅提升病友耐受性，也為無法承受高強度化療的高齡或多重共病患者提供了安全的治療選擇。</p>
+            <p>黃金飆漲，黃金交易單位自10月起從一台兩（37.5 公克）縮小為1台錢（3.75公克），過去一台兩價格超過新台幣10萬元，此舉將有助提升市場流動性，吸引小資族參與。</p>
+            <p>（文章結束）</p>
+        </div>
+    </div>
+
+    <div class="sticky-bar" id="stickyBar" onclick="openModal()">
+        <div class="sticky-icon" id="barIcon">☕</div>
+        <div class="sticky-content">
+            <div class="sticky-text-group">
+                <div class="sticky-title" id="barTitle">活動進行中</div>
+                <div class="sticky-text" id="barText">閱讀文章領咖啡</div>
+            </div>
+            <div class="sticky-progress-info" id="barProgress">
+                0/3
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-close" onclick="closeModal()">×</div>
+            <div class="modal-icon" id="modalIcon">☕</div>
+            <h2 id="modalTitle">閱讀請你喝咖啡！</h2>
+            <p id="modalDesc">活動期間內，閱讀 3 篇不同文章（每篇需閱讀超過 50%），即可獲得 7-ELEVEN 咖啡兌換碼！</p>
+            
+            <a href="#" class="modal-btn disabled" id="modalBtn">還差 X 篇，繼續閱讀</a>
+            
+            <div class="modal-footer">
+                <input type="checkbox" id="noPrompt"> <label for="noPrompt">不要再提示我</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="debug-panel">
+        <strong>開發測試面板 v2</strong>
+        <button onclick="resetData()">重置數據</button>
+        <button onclick="setReadCount(0)">設為：0篇 (初始)</button>
+        <button onclick="setReadCount(1)">設為：1篇</button>
+        <button onclick="setReadCount(2)">設為：2篇</button>
+        <button onclick="setReadCount(3)">設為：3篇 (達成!)</button>
+        <hr>
+        <div style="font-size:10px; color:#aaa">請往下滾動超過紅線以顯示 Bar</div>
+    </div>
+
+    <script>
+        // --- 資料與狀態 ---
+        let readCount = parseInt(localStorage.getItem('gvm_read_count')) || 0;
+        let hasReadCurrent = false; 
+        let isBarVisible = false; // Bar 是否已經顯示
+        const GOAL = 3;
+        const stickyBar = document.getElementById('stickyBar');
+
+        updateUI();
+
+        // --- 【修改點 2】滾動偵測邏輯：控制 Bar 的顯示與計數 ---
+        window.addEventListener('scroll', function() {
+            const scrollPosition = window.scrollY + window.innerHeight;
+            const markerPosition = document.getElementById('scroll-marker').offsetTop;
+
+            // 如果滾動超過 50% 線
+            if (scrollPosition > markerPosition) {
+                // 1. 顯示 Sticky Bar (如果還沒顯示)
+                if (!isBarVisible) {
+                    stickyBar.classList.add('visible');
+                    isBarVisible = true;
+                }
+                
+                // 2. 計數邏輯 (如果這篇還沒算過)
+                if (!hasReadCurrent) {
+                    hasReadCurrent = true;
+                    if (readCount < GOAL) {
+                        readCount++;
+                        localStorage.setItem('gvm_read_count', readCount);
+                        // 延遲一下再更新 UI，讓使用者先看到 Bar 滑出來
+                        setTimeout(() => {
+                             updateUI();
+                             // 特效：達成瞬間 Bar 抖動一下
+                             stickyBar.style.transform = "translateX(-50%) scale(1.1)";
+                             setTimeout(() => stickyBar.style.transform = "translateX(-50%) scale(1)", 200);
+                        }, 600);
+                    }
+                }
+            }
+        });
+
+        // --- UI 更新邏輯 ---
+        function updateUI() {
+            const barTitle = document.getElementById('barTitle');
+            const barText = document.getElementById('barText');
+            const barProgress = document.getElementById('barProgress');
+            const barIcon = document.getElementById('barIcon');
+            
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDesc = document.getElementById('modalDesc');
+            const modalBtn = document.getElementById('modalBtn');
+            const modalIcon = document.getElementById('modalIcon');
+
+            // 更新 Bar 右側的進度數字
+            barProgress.innerText = `${readCount}/${GOAL}`;
+
+            // 根據進度改變文案
+            if (readCount < GOAL) {
+                // 進行中狀態
+                barTitle.innerText = (readCount === 0) ? "活動進行中" : `已完成 ${readCount} 篇`;
+                barText.innerText = (readCount === 0) ? "閱讀文章領咖啡" : `再讀 ${GOAL - readCount} 篇即可領取！`;
+                barIcon.innerText = "☕";
+                
+                modalTitle.innerText = "閱讀請你喝咖啡！";
+                modalDesc.innerText = `只要再閱讀 ${GOAL - readCount} 篇不同文章，就能獲得 7-ELEVEN 咖啡兌換碼。`;
+                modalBtn.innerText = `還差 ${GOAL - readCount} 篇，繼續閱讀`;
+                modalBtn.className = "modal-btn disabled";
+                modalIcon.innerText = "☕";
+
+            } else {
+                // 達成狀態
+                barTitle.innerText = "恭喜完成任務！";
+                barText.innerText = "點擊領取您的咖啡兌換碼";
+                barIcon.innerText = "🎁";
+                barProgress.innerText = "✔"; // 達成後顯示勾勾
+
+                modalTitle.innerText = "🎉 恭喜獲得免費咖啡！";
+                modalDesc.innerText = "您已完成閱讀任務。請點擊下方按鈕填寫資料，我們將寄送兌換碼給您。";
+                modalBtn.innerText = "立即領取咖啡";
+                modalBtn.className = "modal-btn active";
+                modalIcon.innerText = "🎁";
+            }
+        }
+
+        // --- Modal 控制 ---
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal(e) {
+            if (e) e.stopPropagation();
+            document.getElementById('modalOverlay').classList.remove('active');
+            if(document.getElementById('noPrompt').checked) {
+                stickyBar.classList.remove('visible'); // 隱藏 Bar
+            }
+        }
+        
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+             if(e.target === this) closeModal();
+        });
+
+        // --- 測試用 Helper ---
+        function setReadCount(n) {
+            readCount = n;
+            localStorage.setItem('gvm_read_count', readCount);
+            hasReadCurrent = false;
+            // 測試時強制顯示 Bar，方便查看狀態
+            stickyBar.classList.add('visible'); 
+            isBarVisible = true;
+            updateUI();
+        }
+
+        function resetData() {
+            localStorage.clear();
+            location.reload();
+        }
+    </script>
+</body>
+</html>
